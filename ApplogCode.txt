@@ -1,0 +1,419 @@
+### **React UI Implementation with Material-UI**
+I'll provide:
+1. **Logging Service** – A helper function to send logs to the API.
+2. **Log Grid Component** – A Material-UI DataGrid to display logs.
+
+#### **1. Logging Service (logService.js)**
+Handles API calls to register and retrieve logs.
+```javascript
+import axios from "axios";
+
+const API_BASE_URL = "https://your-api-url.com/api/logs"; // Update this with your API URL
+
+export const logEvent = async (userId, logType, description) => {
+  const logEntry = {
+    userId,
+    logType,
+    description,
+    dateTimestamp: new Date().toISOString(),
+  };
+
+  try {
+    await axios.post(API_BASE_URL, logEntry);
+  } catch (error) {
+    console.error("Error logging event:", error);
+  }
+};
+
+export const fetchLogs = async () => {
+  try {
+    const response = await axios.get(API_BASE_URL);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching logs:", error);
+    return [];
+  }
+};
+```
+
+#### **2. Log Grid Component (LogGrid.js)**
+Uses Material-UI DataGrid to display logs.
+```javascript
+import React, { useEffect, useState } from "react";
+import { DataGrid } from "@mui/x-data-grid";
+import { fetchLogs } from "./logService";
+
+const columns = [
+  { field: "id", headerName: "ID", width: 90 },
+  { field: "userId", headerName: "User ID", width: 150 },
+  { field: "logType", headerName: "Log Type", width: 150 },
+  { field: "description", headerName: "Description", width: 300 },
+  { field: "dateTimestamp", headerName: "Timestamp", width: 200 },
+];
+
+const LogGrid = () => {
+  const [logs, setLogs] = useState([]);
+
+  useEffect(() => {
+    const getLogs = async () => {
+      const data = await fetchLogs();
+      setLogs(data.map((log, index) => ({ id: index + 1, ...log }))); // Adding an 'id' for DataGrid
+    };
+    getLogs();
+  }, []);
+
+  return (
+    <div style={{ height: 400, width: "100%" }}>
+      <DataGrid rows={logs} columns={columns} pageSize={5} />
+    </div>
+  );
+};
+
+export default LogGrid;
+```
+
+---
+
+### **.NET C# API Implementation**
+I'll now provide:
+1. **Log Model**
+2. **Controller with Register & Retrieve API**
+3. **Repository Pattern for Data Handling**
+
+#### **1. Log Model (LogEntry.cs)**
+```csharp
+public class LogEntry
+{
+    public string Id { get; set; }  // For MongoDB use ObjectId as string
+    public string UserId { get; set; }
+    public string LogType { get; set; }
+    public string Description { get; set; }
+    public DateTime DateTimestamp { get; set; }
+}
+```
+
+#### **2. Log Controller (LogsController.cs)**
+```csharp
+[ApiController]
+[Route("api/logs")]
+public class LogsController : ControllerBase
+{
+    private readonly ILogRepository _logRepository;
+
+    public LogsController(ILogRepository logRepository)
+    {
+        _logRepository = logRepository;
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RegisterLog([FromBody] LogEntry logEntry)
+    {
+        logEntry.DateTimestamp = DateTime.UtcNow;
+        await _logRepository.InsertLogAsync(logEntry);
+        return Ok();
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetLogs()
+    {
+        var logs = await _logRepository.GetLogsAsync();
+        return Ok(logs);
+    }
+}
+```
+
+#### **3. Repository Layer (ILogRepository.cs & LogRepository.cs)**
+```csharp
+public interface ILogRepository
+{
+    Task InsertLogAsync(LogEntry log);
+    Task<List<LogEntry>> GetLogsAsync();
+}
+```
+
+```csharp
+public class LogRepository : ILogRepository
+{
+    private readonly IMongoCollection<LogEntry> _logCollection;
+
+    public LogRepository(IMongoDatabase database)
+    {
+        _logCollection = database.GetCollection<LogEntry>("Logs");
+    }
+
+    public async Task InsertLogAsync(LogEntry log)
+    {
+        await _logCollection.InsertOneAsync(log);
+    }
+
+    public async Task<List<LogEntry>> GetLogsAsync()
+    {
+        return await _logCollection.Find(_ => true).ToListAsync();
+    }
+}
+```
+
+---
+
+### **Next Steps**
+- Update `API_BASE_URL` in React.
+- Integrate this in a .NET Web API project with MongoDB.
+- Test with login/logout and customer popup events.
+
+Would you like help setting up the MongoDB connection in .NET? 🚀
+
+
+### **1. Define `LogEntry` as a Type in .NET**  
+To ensure strong typing, define `LogEntry` as a **record** or **class** in .NET.
+
+#### **LogEntry.cs**
+```csharp
+public record LogEntry(
+    string UserId,
+    string LogType,
+    string Description,
+    DateTime DateTimestamp
+);
+```
+Alternatively, if using a **class**:
+```csharp
+public class LogEntry
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();  
+    public string UserId { get; set; } = string.Empty;
+    public string LogType { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public DateTime DateTimestamp { get; set; } = DateTime.UtcNow;
+}
+```
+
+---
+
+### **2. Implement React to Capture Events and Call Logging Service**
+We need to log events for:
+- **Popup close** (Customer Information View)
+- **User logout**
+- **Browser tab close (Unload event)**
+
+#### **React Event Logging Implementation**
+Modify the React app to capture these events.
+
+#### **Logging Events on Popup Open/Close**
+```javascript
+import { logEvent } from "./logService";
+
+const handlePopupOpen = (userId) => {
+  logEvent(userId, "Popup Open", "Customer Information popup opened.");
+};
+
+const handlePopupClose = (userId) => {
+  logEvent(userId, "Popup Close", "Customer Information popup closed.");
+};
+```
+Attach `handlePopupOpen` to the popup **open event** and `handlePopupClose` to the **onClose event**.
+
+#### **Logging User Logout**
+```javascript
+const handleLogout = (userId) => {
+  logEvent(userId, "Logout", "User logged out.");
+  // Redirect or clear session here
+};
+```
+Attach `handleLogout` to the **logout button click event**.
+
+#### **Logging Browser Tab Close (Unload Event)**
+Use `window.addEventListener("beforeunload")` to track tab close events.
+
+```javascript
+import { useEffect } from "react";
+import { logEvent } from "./logService";
+
+const useUnloadLogger = (userId) => {
+  useEffect(() => {
+    const handleUnload = () => {
+      logEvent(userId, "Session End", "User closed the browser tab.");
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleUnload);
+    };
+  }, [userId]);
+};
+
+export default useUnloadLogger;
+```
+Use this hook inside the **main app component**:
+```javascript
+import useUnloadLogger from "./useUnloadLogger";
+
+function App({ userId }) {
+  useUnloadLogger(userId);
+
+  return <div>My App</div>;
+}
+```
+
+---
+
+### **Summary of React Logging**
+- **Popup Open/Close:** Calls `logEvent` when the user opens/closes the popup.
+- **Logout Button:** Calls `logEvent` when the user logs out.
+- **Browser Tab Close:** Uses `beforeunload` to detect tab close and logs it.
+
+Would you like me to integrate session management with logging as well? 🚀
+
+
+### **Integrating Session Management with Logging in React**
+To track user sessions, we need:
+1. **Session Storage** – Store user session data.
+2. **Auto-Login Check** – Restore session on page reload.
+3. **Auto-Logout on Session Expiry** – Clear session and log out after inactivity.
+4. **Logging Session Start & End** – Log when the session starts and ends.
+
+---
+
+### **1. Session Management Using Local Storage**
+We'll store user session data in **localStorage** and manage authentication.
+
+#### **SessionService.js (Handle Session Storage)**
+```javascript
+const SESSION_KEY = "user_session";
+
+export const setUserSession = (userId) => {
+  const sessionData = {
+    userId,
+    timestamp: new Date().toISOString(),
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+};
+
+export const getUserSession = () => {
+  const session = localStorage.getItem(SESSION_KEY);
+  return session ? JSON.parse(session) : null;
+};
+
+export const clearUserSession = () => {
+  localStorage.removeItem(SESSION_KEY);
+};
+```
+
+---
+
+### **2. Logging Session Start & End**
+Modify login and logout processes to log session start and end.
+
+#### **Login Function (On Successful Login)**
+```javascript
+import { setUserSession } from "./SessionService";
+import { logEvent } from "./logService";
+
+const handleLogin = (userId) => {
+  setUserSession(userId);
+  logEvent(userId, "Login", "User logged in.");
+};
+```
+
+#### **Logout Function**
+```javascript
+import { clearUserSession } from "./SessionService";
+import { logEvent } from "./logService";
+
+const handleLogout = () => {
+  const session = getUserSession();
+  if (session) {
+    logEvent(session.userId, "Logout", "User logged out.");
+  }
+  clearUserSession();
+};
+```
+
+Attach `handleLogout` to the **Logout button**.
+
+---
+
+### **3. Auto-Logout on Inactivity**
+If the user is inactive for **30 minutes**, log out automatically.
+
+#### **AutoLogout.js**
+```javascript
+import { getUserSession, clearUserSession } from "./SessionService";
+import { logEvent } from "./logService";
+
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+export const startAutoLogout = () => {
+  let timeout;
+
+  const resetTimer = () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      const session = getUserSession();
+      if (session) {
+        logEvent(session.userId, "Auto Logout", "User session expired due to inactivity.");
+        clearUserSession();
+        window.location.reload(); // Redirect to login page
+      }
+    }, INACTIVITY_TIMEOUT);
+  };
+
+  window.addEventListener("mousemove", resetTimer);
+  window.addEventListener("keypress", resetTimer);
+
+  resetTimer();
+};
+```
+**Use in App Component:**
+```javascript
+import { startAutoLogout } from "./AutoLogout";
+
+useEffect(() => {
+  startAutoLogout();
+}, []);
+```
+
+---
+
+### **4. Logging Browser Tab Close Event**
+Use `useUnloadLogger` to log session end when the browser/tab is closed.
+
+```javascript
+import { useEffect } from "react";
+import { logEvent } from "./logService";
+import { getUserSession } from "./SessionService";
+
+const useUnloadLogger = () => {
+  useEffect(() => {
+    const handleUnload = () => {
+      const session = getUserSession();
+      if (session) {
+        logEvent(session.userId, "Session End", "User closed the browser/tab.");
+      }
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, []);
+};
+
+export default useUnloadLogger;
+```
+**Use in App Component:**
+```javascript
+import useUnloadLogger from "./useUnloadLogger";
+
+useUnloadLogger();
+```
+
+---
+
+### **Final Flow**
+✅ **Login** → Stores session and logs event.  
+✅ **Popup Open/Close** → Logs when opened/closed.  
+✅ **Inactivity Timeout** → Auto-logs out after 30 minutes.  
+✅ **Logout Button** → Clears session and logs event.  
+✅ **Browser Close** → Logs session end on tab close.
+
+Now, logging and session management are fully integrated. 🚀  
+Would you like any enhancements, such as **JWT authentication** or **server-side session validation**?
