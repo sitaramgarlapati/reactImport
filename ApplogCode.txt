@@ -1,59 +1,31 @@
-using Moq;
-using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
-using Xunit;
-
-public class DecisionHistoryRepositoryTests
+[Fact]
+public async Task FindAll_ShouldReturnFilteredResults()
 {
-    private readonly Mock<IRepositoryBuilder> _mockRepositoryBuilder;
-    private readonly Mock<IDecisionHistoryRepository> _mockRepository;
-    private readonly DecisionHistoryRepository _repository;
-
-    public DecisionHistoryRepositoryTests()
+    // Arrange
+    var sampleData = new List<DecisionHistory>
     {
-        _mockRepositoryBuilder = new Mock<IRepositoryBuilder>();
-        _mockRepository = new Mock<IDecisionHistoryRepository>();
+        new DecisionHistory { Id = "1", Status = "Approved" },
+        new DecisionHistory { Id = "2", Status = "Rejected" }
+    };
 
-        _mockRepositoryBuilder
-            .Setup(rb => rb.GetRepository<IDecisionHistoryRepository>())
-            .Returns(_mockRepository.Object);
-
-        _repository = new DecisionHistoryRepository(_mockRepositoryBuilder.Object);
-    }
-
-    [Fact]
-    public async Task FindAll_ShouldReturnFilteredResults()
-    {
-        // Arrange
-        var sampleData = new List<DecisionHistory>
+    _mockRepository
+        .Setup(repo => repo.FindAll(It.IsAny<Expression<Func<DecisionHistory, bool>>>()))
+        .ReturnsAsync((Expression<Func<DecisionHistory, bool>> filter) =>
         {
-            new DecisionHistory { Id = "1", Status = "Approved" },
-            new DecisionHistory { Id = "2", Status = "Rejected" }
-        };
+            var compiledFilter = filter.Compile();
+            return sampleData.Where(compiledFilter).ToList();
+        });
 
-        // Mock FindAll method
-        _mockRepository
-    .Setup(repo => repo.FindAll(It.IsAny<Expression<Func<DecisionHistory, bool>>>()))
-    .ReturnsAsync((Expression<Func<DecisionHistory, bool>> filter) =>
-    {
-        var compiledFilter = filter.Compile();
-        return sampleData.Where(compiledFilter).ToList();
-    });
+    // Define filter
+    Expression<Func<DecisionHistory, bool>> filter = x => x.Status == "Approved";
 
-        // Define filter
-        Expression<Func<DecisionHistory, bool>> filter = x => x.Status == "Approved";
+    // Act
+    var result = await _repository.FindAll(filter);
 
-        // Act
-        var result = await _repository.FindAll(filter);
+    // Assert
+    Assert.Single(result);
+    Assert.Equal("Approved", result[0].Status);
 
-        // Assert
-        Assert.Single(result);
-        Assert.Equal("Approved", result[0].Status);
-
-        // Verify that FindAll was called once with any filter expression
-        _mockRepository.Verify(repo => repo.FindAll(It.IsAny<Expression<Func<DecisionHistory, bool>>>()), Times.Once);
-    }
+    // Verify FindAll() was called exactly once
+    _mockRepository.Verify(repo => repo.FindAll(It.IsAny<Expression<Func<DecisionHistory, bool>>>()), Times.Once);
 }
