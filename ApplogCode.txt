@@ -36,9 +36,12 @@ public class DecisionHistoryRepositoryTests
 
         // Mock FindAll method
         _mockRepository
-            .Setup(repo => repo.FindAll(It.IsAny<Expression<Func<DecisionHistory, bool>>>()))
-            .ReturnsAsync((Expression<Func<DecisionHistory, bool>> filter) =>
-                sampleData.Where(filter.Compile()).ToList());
+    .Setup(repo => repo.FindAll(It.IsAny<Expression<Func<DecisionHistory, bool>>>()))
+    .ReturnsAsync((Expression<Func<DecisionHistory, bool>> filter) =>
+    {
+        var compiledFilter = filter.Compile();
+        return sampleData.Where(compiledFilter).ToList();
+    });
 
         // Define filter
         Expression<Func<DecisionHistory, bool>> filter = x => x.Status == "Approved";
