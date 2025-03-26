@@ -1,52 +1,31 @@
-using Moq;
-using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
-using Xunit;
+import { useEffect } from "react";
+import { saveHistoryLog } from "../services/api";
 
-public class DecisionHistoryRepositoryTests
-{
-    private readonly Mock<IDecisionHistoryRepository> _mockRepository;
-    private readonly DecisionHistoryRepository _repository;
+const ApplicationDetails = ({ requestId }) => {
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      // Retrieve saved logs from sessionStorage
+      const savedLogs = JSON.parse(sessionStorage.getItem("savedLogs") || "{}");
 
-    public DecisionHistoryRepositoryTests()
-    {
-        _mockRepository = new Mock<IDecisionHistoryRepository>();
-        _repository = new DecisionHistoryRepository(_mockRepository.Object);
-    }
+      // Check if this requestId was already logged
+      if (!savedLogs[requestId]) {
+        saveHistoryLog({ eventType: "CLOSE", requestId }); // Log close event
+        savedLogs[requestId] = true; // Mark as logged
+        sessionStorage.setItem("savedLogs", JSON.stringify(savedLogs)); // Update sessionStorage
+      }
 
-    [Fact]
-    public async Task GetDecisionLogs_ShouldReturnFilteredResults()
-    {
-        // Arrange
-        string requestId = "12345";
+      event.preventDefault();
+      event.returnValue = "";
+    };
 
-        var sampleData = new List<DecisionHistory>
-        {
-            new DecisionHistory { Id = "1", RequestId = "12345", Status = "Approved" },
-            new DecisionHistory { Id = "2", RequestId = "67890", Status = "Rejected" }
-        };
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
-        // Mock FindAll method to return only matching requestId data
-        _mockRepository
-            .Setup(repo => repo.FindAll(It.IsAny<Expression<Func<DecisionHistory, bool>>>()))
-            .ReturnsAsync((Expression<Func<DecisionHistory, bool>> filter) =>
-            {
-                var compiledFilter = filter.Compile();
-                return sampleData.Where(compiledFilter).ToList();
-            });
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [requestId]); // Dependency on requestId
 
-        // Act
-        var result = await _repository.GetDecisionLogs(requestId);
+  return <div>Application Details Page</div>;
+};
 
-        // Assert
-        Assert.Single(result);
-        Assert.Equal("12345", result[0].RequestId);
-        Assert.Equal("Approved", result[0].Status);
-
-        // Verify FindAll was called once
-        _mockRepository.Verify(repo => repo.FindAll(It.IsAny<Expression<Func<DecisionHistory, bool>>>()), Times.Once);
-    }
-}
+export default ApplicationDetails;
