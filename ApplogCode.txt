@@ -1,92 +1,38 @@
-You're right to ask about the connection between triggerClose and handleUnload. Let me clarify the implementation.
+export const formatDateToMMDDYYYY = (inputDate: string): string => {
+  if (!inputDate) return '';
 
-Understanding the Connection
-	• triggerClose is a function defined in the context (CloseContext.tsx) that we use to notify components when the "Close Application" link is clicked.
-	• handleUnload is a function in Appdetails.tsx that logs the close action in MongoDB.
-	• When the "Close Application" link in App.tsx is clicked, it triggers triggerClose, which then calls handleUnload inside Appdetails.tsx.
+  let date: Date;
 
-Updated Implementation with Proper Connection
-1. CloseContext.tsx (Centralized Event Management)
-This context will store a function reference (onClose) and call it whenever triggerClose is invoked.
-import React, { createContext, useContext, useState } from "react";
-type CloseContextType = {
-  registerCloseHandler: (callback: () => void) => void;
-  triggerClose: () => void;
-};
-const CloseContext = createContext<CloseContextType | undefined>(undefined);
-export const CloseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [onClose, setOnClose] = useState<(() => void) | null>(null);
-const registerCloseHandler = (callback: () => void) => {
-    setOnClose(() => callback);
-  };
-const triggerClose = () => {
-    if (onClose) {
-      onClose(); // Calls handleUnload in Appdetails.tsx
+  // Check for YYYY-MM-DD format
+  const isoMatch = /^\d{4}-\d{2}-\d{2}$/.test(inputDate);
+  if (isoMatch) {
+    date = new Date(inputDate);
+  } else {
+    // Check for DD-MM-YYYY or similar non-standard
+    const parts = inputDate.split(/[-\/]/);
+    if (parts.length === 3) {
+      const [part1, part2, part3] = parts;
+
+      if (Number(part1) > 31) {
+        // Probably YYYY-MM-DD or YYYY/MM/DD
+        date = new Date(inputDate);
+      } else {
+        // Assume DD-MM-YYYY
+        const day = parseInt(part1, 10);
+        const month = parseInt(part2, 10) - 1; // Months are 0-indexed
+        const year = parseInt(part3, 10);
+        date = new Date(year, month, day);
+      }
+    } else {
+      return '';
     }
-  };
-return (
-    <CloseContext.Provider value={{ registerCloseHandler, triggerClose }}>
-      {children}
-    </CloseContext.Provider>
-  );
-};
-export const useCloseContext = () => {
-  const context = useContext(CloseContext);
-  if (!context) {
-    throw new Error("useCloseContext must be used within CloseProvider");
   }
-  return context;
+
+  if (isNaN(date.getTime())) return '';
+
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = date.getFullYear();
+
+  return `${month}/${day}/${year}`;
 };
-
-2. App.tsx (Trigger Close Event)
-	• The triggerClose function is called when the "Close Application" link is clicked.
-import React from "react";
-import { useCloseContext } from "./contexts/CloseContext";
-import Appdetails from "./components/Appdetails";
-const App: React.FC = () => {
-  const { triggerClose } = useCloseContext();
-return (
-    <div>
-      <header>
-        <a href="#" onClick={triggerClose}>Close Application</a>
-      </header>
-      <Appdetails />
-    </div>
-  );
-};
-export default App;
-
-3. Appdetails.tsx (Log Close Event in MongoDB)
-	• Here, we register the handleUnload function in useEffect, so it gets called when triggerClose is invoked.
-import React, { useEffect } from "react";
-import { useCloseContext } from "../contexts/CloseContext";
-const Appdetails: React.FC = () => {
-  const { registerCloseHandler } = useCloseContext();
-const handleUnload = () => {
-    console.log("Logging close history in MongoDB...");
-    // Call API to log close history
-    fetch("/api/log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "close", timestamp: new Date().toISOString() }),
-    });
-  };
-useEffect(() => {
-    registerCloseHandler(handleUnload);
-  }, [registerCloseHandler]);
-return <div>Application Details Page</div>;
-};
-export default Appdetails;
-
-How This Works
-	1. Appdetails.tsx registers handleUnload in the CloseContext when it mounts.
-	2. App.tsx triggers triggerClose when "Close Application" is clicked.
-	3. triggerClose calls the registered handleUnload function in Appdetails.tsx.
-	4. MongoDB logging happens inside handleUnload.
-This ensures that: ✔ handleUnload is only executed when the "Close Application" button is clicked.
-✔ No unnecessary event listeners are created.
-✔ We have centralized event management through the Context API.
-Would you like me to add a session-based tracking of close events as well? 🚀
-
-From <https://chatgpt.com/c/67de601d-4d1c-800a-8ef9-1bb5da05146d> 
-
