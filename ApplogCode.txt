@@ -36,3 +36,45 @@ export const formatDateToMMDDYYYY = (inputDate: string): string => {
 
   return `${month}/${day}/${year}`;
 };
+
+
+// dateUtils.test.ts
+import { formatDateToMMDDYYYY } from './dateUtils';
+
+describe('formatDateToMMDDYYYY', () => {
+  it('should convert ISO date string to MM/DD/YYYY', () => {
+    expect(formatDateToMMDDYYYY('2025-06-16')).toBe('06/16/2025');
+  });
+
+  it('should convert DD-MM-YYYY to MM/DD/YYYY', () => {
+    expect(formatDateToMMDDYYYY('16-06-2025')).toBe('06/16/2025');
+  });
+
+  it('should convert DD/MM/YYYY to MM/DD/YYYY', () => {
+    expect(formatDateToMMDDYYYY('16/06/2025')).toBe('06/16/2025');
+  });
+
+  it('should convert "June 16, 2025" to MM/DD/YYYY', () => {
+    expect(formatDateToMMDDYYYY('June 16, 2025')).toBe('06/16/2025');
+  });
+
+  it('should return empty string for empty input', () => {
+    expect(formatDateToMMDDYYYY('')).toBe('');
+  });
+
+  it('should return empty string for invalid input', () => {
+    expect(formatDateToMMDDYYYY('invalid-date')).toBe('');
+  });
+
+  it('should convert YYYY/MM/DD format correctly', () => {
+    expect(formatDateToMMDDYYYY('2025/06/16')).toBe('06/16/2025');
+  });
+
+  it('should return empty string for partially invalid date', () => {
+    expect(formatDateToMMDDYYYY('2025-13-01')).toBe('');
+  });
+
+  it('should handle single-digit days and months', () => {
+    expect(formatDateToMMDDYYYY('5-7-2025')).toBe('07/05/2025'); // DD-MM-YYYY
+  });
+});
